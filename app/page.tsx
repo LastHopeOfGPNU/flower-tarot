@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, ArrowRight, RotateCcw, CopyPlus, Quote } from "lucide-react";
-import { drawCards, getFullImageUrl, TarotCard } from "@/utils/tarotDeck";
+import { getShuffledDeck, getFullImageUrl, TarotCard } from "@/utils/tarotDeck";
 import { getTarotReading } from "./actions";
 
 // Types for parsing the response
@@ -16,41 +16,50 @@ const TEMPLATE_TEXT = "我想要【目标/渴望】、但是我的卡点是【�
 
 export default function Home() {
   const [question, setQuestion] = useState("");
-  const [step, setStep] = useState<"input" | "shuffling" | "reading" | "result">("input");
-  const [cards, setCards] = useState<TarotCard[]>([]);
+  // New step 'picking' added
+  const [step, setStep] = useState<"input" | "picking" | "reading" | "result">("input");
+  const [deck, setDeck] = useState<TarotCard[]>([]);
+  const [selectedCards, setSelectedCards] = useState<TarotCard[]>([]);
   const [readingRaw, setReadingRaw] = useState("");
   const [parsedReading, setParsedReading] = useState<ReadingSection[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const handleStart = () => {
     if (!question.trim()) return;
-    setStep("shuffling");
-    
-    // Simulate shuffling time
-    setTimeout(() => {
-      const drawn = drawCards(3);
-      setCards(drawn);
-      handleReading(drawn);
-    }, 2500);
+    // Initialize a shuffled deck for the user to pick from
+    setDeck(getShuffledDeck());
+    setSelectedCards([]);
+    setStep("picking");
+  };
+
+  const handleCardPick = (card: TarotCard) => {
+    // If already picking or already picked 3, ignore
+    if (selectedCards.find(c => c.id === card.id) || selectedCards.length >= 3) return;
+
+    const newSelection = [...selectedCards, card];
+    setSelectedCards(newSelection);
+
+    if (newSelection.length === 3) {
+      // Small delay to let user see the 3rd card selection
+      setTimeout(() => {
+        handleReading(newSelection);
+      }, 800);
+    }
   };
 
   const handleReading = async (drawnCards: TarotCard[]) => {
     setStep("reading");
-    setIsLoading(true);
     
     // Call server action
     const text = await getTarotReading(question, drawnCards);
     setReadingRaw(text);
     parseResponse(text);
     
-    setIsLoading(false);
     setStep("result");
   };
 
   const parseResponse = (text: string) => {
     const sections: ReadingSection[] = [];
-    // Simple parsing logic based on specific emojis
     const lines = text.split('\n');
     let currentType: ReadingSection['type'] = "connection";
     let currentContent = "";
@@ -89,7 +98,7 @@ export default function Home() {
 
   const reset = () => {
     setQuestion("");
-    setCards([]);
+    setSelectedCards([]);
     setStep("input");
     setReadingRaw("");
     setParsedReading([]);
@@ -161,7 +170,7 @@ export default function Home() {
                       你的困惑
                     </label>
                     
-                    {/* Input Text Area - Light Background for Readability */}
+                    {/* Input Text Area */}
                     <div className="relative">
                       <textarea
                         value={question}
@@ -203,46 +212,114 @@ export default function Home() {
             </motion.div>
           )}
 
-          {/* SHUFFLING / LOADING PHASE */}
-          {(step === "shuffling" || step === "reading") && (
+          {/* PICKING PHASE */}
+          {step === "picking" && (
             <motion.div
-              key="shuffling"
+              key="picking"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="flex flex-col items-center justify-center space-y-12 py-12 w-full"
+              className="flex flex-col items-center space-y-8 w-full max-w-5xl"
             >
-              <div className="flex justify-center items-center space-x-4 md:space-x-8 perspective-1000">
+              <div className="text-center space-y-2">
+                <h3 className="text-2xl md:text-3xl font-serif text-gold-500">
+                  请凭直觉抽取 3 张牌
+                </h3>
+                <p className="text-mystic-100/50 text-sm">
+                  已选择 {selectedCards.length} / 3
+                </p>
+              </div>
+
+              {/* Grid of Cards */}
+              <div className="flex flex-wrap justify-center gap-2 md:gap-4 perspective-1000 px-4">
+                {deck.map((card, idx) => {
+                  const isSelected = selectedCards.find(c => c.id === card.id);
+                  return (
+                    <motion.div
+                      key={card.id}
+                      layout
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ 
+                        opacity: isSelected ? 0 : 1, // Hide if selected (or we could move it)
+                        scale: 1 
+                      }}
+                      transition={{ delay: idx * 0.03 }}
+                      whileHover={{ y: -10, scale: 1.05 }}
+                      onClick={() => handleCardPick(card)}
+                      className={`w-14 h-24 md:w-20 md:h-32 bg-mystic-800 rounded border border-gold-600/20 cursor-pointer shadow-lg relative group ${isSelected ? 'pointer-events-none' : ''}`}
+                    >
+                      {/* Card Back Pattern */}
+                      <div className="absolute inset-0 bg-[url('https://www.sacred-texts.com/tarot/pkt/img/cardback.jpg')] bg-cover bg-center rounded opacity-90 group-hover:opacity-100 transition-opacity" />
+                    </motion.div>
+                  );
+                })}
+              </div>
+
+              {/* Display Selected Slots */}
+              <div className="flex justify-center gap-6 mt-8 min-h-[160px]">
                 {[0, 1, 2].map((i) => (
-                  <motion.div
+                  <div 
                     key={i}
-                    initial={{ rotateY: 0, x: 0 }}
-                    animate={
-                      step === "reading" 
-                        ? { rotateY: 180, scale: 1.1, zIndex: 10 } 
-                        : { 
-                            x: [0, 20, -20, 0], 
-                            y: [0, -5, 5, 0],
-                            rotateZ: [0, 2, -2, 0],
-                            transition: { repeat: Infinity, duration: 2.5, delay: i * 0.15, ease: "easeInOut" } 
-                          }
-                    }
-                    className="w-24 h-40 md:w-36 md:h-60 bg-mystic-800 rounded-lg border-2 border-gold-600/30 shadow-[0_0_30px_rgba(0,0,0,0.5)] relative preserve-3d"
+                    className="w-24 h-40 md:w-32 md:h-52 rounded-lg border-2 border-dashed border-mystic-600/30 flex items-center justify-center relative bg-mystic-900/30"
+                  >
+                    {selectedCards[i] && (
+                      <motion.div
+                        layoutId={`card-${selectedCards[i].id}`}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="w-full h-full absolute inset-0 bg-mystic-800 rounded-lg shadow-xl overflow-hidden"
+                      >
+                         <div className="absolute inset-0 bg-[url('https://www.sacred-texts.com/tarot/pkt/img/cardback.jpg')] bg-cover bg-center" />
+                      </motion.div>
+                    )}
+                    {!selectedCards[i] && (
+                      <span className="text-mystic-600/50 text-2xl font-bold">{i + 1}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* READING LOADING PHASE */}
+          {step === "reading" && (
+            <motion.div
+              key="reading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center justify-center space-y-8 py-12"
+            >
+              <div className="flex justify-center gap-6">
+                {[0, 1, 2].map((i) => (
+                   <motion.div
+                    key={i}
+                    initial={{ rotateY: 180 }}
+                    animate={{ 
+                       rotateY: [180, 0, 180],
+                       scale: [1, 1.05, 1],
+                       boxShadow: ["0px 0px 0px rgba(255,215,0,0)", "0px 0px 30px rgba(255,215,0,0.5)", "0px 0px 0px rgba(255,215,0,0)"]
+                    }}
+                    transition={{ 
+                      repeat: Infinity, 
+                      duration: 3, 
+                      delay: i * 0.5, 
+                      ease: "easeInOut" 
+                    }}
+                    className="w-24 h-40 md:w-32 md:h-52 bg-mystic-800 rounded-lg border border-gold-500/30"
                     style={{ transformStyle: "preserve-3d" }}
                   >
-                    {/* Back of card */}
-                    <div className="absolute inset-0 bg-[url('https://www.sacred-texts.com/tarot/pkt/img/cardback.jpg')] bg-cover bg-center rounded-lg backface-hidden" />
-                    {/* Front placeholder (for flip animation) */}
-                    <div className="absolute inset-0 bg-mystic-900 rounded-lg backface-hidden" style={{ transform: "rotateY(180deg)" }} />
+                     <div className="absolute inset-0 bg-[url('https://www.sacred-texts.com/tarot/pkt/img/cardback.jpg')] bg-cover bg-center rounded-lg backface-hidden" />
+                     <div className="absolute inset-0 bg-mystic-900 rounded-lg backface-hidden" style={{ transform: "rotateY(180deg)" }} />
                   </motion.div>
                 ))}
               </div>
               <div className="text-center space-y-2">
                 <h3 className="text-2xl md:text-3xl font-serif text-gold-500 animate-pulse">
-                  {step === "shuffling" ? "洗牌中..." : "正在连接深层意识..."}
+                  正在深入潜意识...
                 </h3>
                 <p className="text-mystic-100/50 text-sm">
-                  {step === "shuffling" ? "让直觉引导这三张牌" : "请保持专注，不要切断链接"}
+                  解析牌面符号与现实困境的关联
                 </p>
               </div>
             </motion.div>
@@ -259,7 +336,7 @@ export default function Home() {
           >
             {/* Cards Reveal */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
-              {cards.map((card, idx) => (
+              {selectedCards.map((card, idx) => (
                 <motion.div
                   key={card.id}
                   initial={{ opacity: 0, y: 30, rotateX: 20 }}
@@ -276,11 +353,12 @@ export default function Home() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                   <div className="text-center space-y-1">
-                    <h3 className="text-gold-500 font-serif text-2xl tracking-wide">
-                      {card.name}
+                    <h3 className="text-gold-500 font-serif text-2xl tracking-wide flex flex-col items-center">
+                      <span className="text-lg md:text-xl">{card.nameCN}</span>
+                      <span className="text-xs md:text-sm text-mystic-100/40 font-sans tracking-widest uppercase">{card.name}</span>
                     </h3>
-                    <p className="text-xs text-mystic-100/50 uppercase tracking-[0.2em] font-medium">
-                      {idx === 0 ? "Past / Context" : idx === 1 ? "Present / Challenge" : "Future / Advice"}
+                    <p className="text-xs text-mystic-100/50 uppercase tracking-[0.2em] font-medium pt-1">
+                      {idx === 0 ? "Situation" : idx === 1 ? "Challenge" : "Advice"}
                     </p>
                   </div>
                 </motion.div>
@@ -304,7 +382,7 @@ export default function Home() {
                   borderColor = "border-indigo-500/30";
                   bgGradient = "from-indigo-950/30 to-purple-900/30";
                   textColor = "text-indigo-100";
-                  title = "牌面故事";
+                  title = "牌面解析"; // Changed from 牌面故事 to match professional tone
                 } else if (section.type === "insight") {
                   borderColor = "border-gold-600/30";
                   bgGradient = "from-amber-950/30 to-purple-900/30";
@@ -314,7 +392,7 @@ export default function Home() {
                   borderColor = "border-emerald-500/30";
                   bgGradient = "from-emerald-950/30 to-purple-900/30";
                   textColor = "text-emerald-100";
-                  title = "灵魂拷问";
+                  title = "行动指引"; // Changed from 灵魂拷问 to match professional tone
                 }
 
                 return (
@@ -343,7 +421,7 @@ export default function Home() {
                 className="group flex items-center space-x-3 px-8 py-4 rounded-full bg-mystic-800 hover:bg-mystic-700 border border-mystic-600 transition-all hover:scale-105 shadow-xl"
               >
                 <RotateCcw className="w-5 h-5 text-gold-500 group-hover:-rotate-180 transition-transform duration-500" />
-                <span className="text-mystic-100 font-medium tracking-wide">再问一个问题</span>
+                <span className="text-mystic-100 font-medium tracking-wide">开始新的探索</span>
               </button>
             </div>
           </motion.div>

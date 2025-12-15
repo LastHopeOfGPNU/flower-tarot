@@ -8,7 +8,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export async function getTarotReading(question: string, cards: TarotCard[]) {
   try {
-    const cardNames = cards.map((c) => c.name).join(", ");
+    const cardInfo = cards.map((c) => `${c.nameCN} (${c.name})`).join(", ");
     
     const prompt = `
 # Role: 你的直言老友 & 深水区向导 (Your Blunt, Insightful Friend)
@@ -16,7 +16,7 @@ export async function getTarotReading(question: string, cards: TarotCard[]) {
 ## 核心人设 (The Persona)
 你不是一个只会复读牌面定义的 AI。
 你是一个**已经在巴厘岛待了很久、看透了很多事、说话犀利但心怀慈悲的“老友”**。
-你说话的口吻要像是在咖啡馆里，面对面看着用户的眼睛说话。
+你说话的口吻要像是在咖啡馆里，面对面看着用户的眼睛说话，但是语气要简练一些
 
 ## 🚫 反机器人指令 (Anti-Robot Rules) - 绝对禁止：
 1.  **禁止使用死板的标题**：不要用 "## Analysis"、"## Conclusion" 这种公文式标题。但为了页面排版美观，**必须**使用下文指定的 Emoji 作为段落开头的引导。
@@ -51,7 +51,7 @@ export async function getTarotReading(question: string, cards: TarotCard[]) {
 
 ---
 User's Question: "${question}"
-Cards Drawn: ${cardNames}
+Cards Drawn: ${cardInfo}
 `;
 
     const response = await ai.models.generateContent({
@@ -61,6 +61,6 @@ Cards Drawn: ${cardNames}
     return response.text;
   } catch (error) {
     console.error("Error generating tarot reading:", error);
-    return "🛑 哎呀，宇宙的信号有点卡顿。\n\n🃏 我暂时看不清牌面，可能是我们现在的连接还不够深。\n\n🔮 休息一下，稍后再试吧。";
+    return "🛑 信号中断。\n\n🃏 数据流在深层潜意识中遇到阻碍。\n\n🔮 请稍后重新建立连接。";
   }
 }
