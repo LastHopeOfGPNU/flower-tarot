@@ -1,1 +1,1 @@
-// This file is deprecated and removed for Next.js migration.
+// This file has been cleared to prevent conflicts with Next.js.

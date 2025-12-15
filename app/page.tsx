@@ -1,431 +1,288 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ArrowRight, RotateCcw, CopyPlus, Quote } from "lucide-react";
-import { getShuffledDeck, getFullImageUrl, TarotCard } from "@/utils/tarotDeck";
+import { Sparkles, ArrowRight, RefreshCcw, Eye } from "lucide-react";
+import { getShuffledDeck, TarotCard, getFullImageUrl } from "@/utils/tarotDeck";
 import { getTarotReading } from "./actions";
+import clsx from "clsx";
 
-// Types for parsing the response
-type ReadingSection = {
-  type: "connection" | "story" | "insight" | "reality";
-  content: string;
-};
-
-const TEMPLATE_TEXT = "我想要【目标/渴望】、但是我的卡点是【具体的恐惧/障碍】，我应该【行动选项】吗？";
+// Steps of the reading process
+type Step = "input" | "shuffle" | "pick" | "reading";
 
 export default function Home() {
   const [question, setQuestion] = useState("");
-  // New step 'picking' added
-  const [step, setStep] = useState<"input" | "picking" | "reading" | "result">("input");
+  const [step, setStep] = useState<Step>("input");
   const [deck, setDeck] = useState<TarotCard[]>([]);
   const [selectedCards, setSelectedCards] = useState<TarotCard[]>([]);
-  const [readingRaw, setReadingRaw] = useState("");
-  const [parsedReading, setParsedReading] = useState<ReadingSection[]>([]);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [reading, setReading] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Initialize deck on load
+  useEffect(() => {
+    setDeck(getShuffledDeck());
+  }, []);
 
   const handleStart = () => {
     if (!question.trim()) return;
-    // Initialize a shuffled deck for the user to pick from
-    setDeck(getShuffledDeck());
-    setSelectedCards([]);
-    setStep("picking");
+    setStep("shuffle");
+    // Simulate shuffle delay then move to pick
+    setTimeout(() => setStep("pick"), 1500);
   };
 
-  const handleCardPick = (card: TarotCard) => {
-    // If already picking or already picked 3, ignore
-    if (selectedCards.find(c => c.id === card.id) || selectedCards.length >= 3) return;
+  const handleCardClick = (card: TarotCard) => {
+    if (selectedCards.length >= 3) return;
+    if (selectedCards.find((c) => c.id === card.id)) return;
 
-    const newSelection = [...selectedCards, card];
-    setSelectedCards(newSelection);
+    const newSelected = [...selectedCards, card];
+    setSelectedCards(newSelected);
 
-    if (newSelection.length === 3) {
-      // Small delay to let user see the 3rd card selection
-      setTimeout(() => {
-        handleReading(newSelection);
-      }, 800);
+    if (newSelected.length === 3) {
+      // Small delay before starting reading to let animation finish
+      setTimeout(() => startReading(newSelected), 1000);
     }
   };
 
-  const handleReading = async (drawnCards: TarotCard[]) => {
+  const startReading = async (cards: TarotCard[]) => {
     setStep("reading");
-    
-    // Call server action
-    const text = await getTarotReading(question, drawnCards);
-    setReadingRaw(text);
-    parseResponse(text);
-    
-    setStep("result");
-  };
-
-  const parseResponse = (text: string) => {
-    const sections: ReadingSection[] = [];
-    const lines = text.split('\n');
-    let currentType: ReadingSection['type'] = "connection";
-    let currentContent = "";
-
-    const flush = () => {
-      if (currentContent.trim()) {
-        sections.push({ type: currentType, content: currentContent.trim() });
-        currentContent = "";
-      }
-    };
-
-    lines.forEach(line => {
-      if (line.includes("🛑")) {
-        flush();
-        currentType = "connection";
-        currentContent = line.replace("🛑", "").trim();
-      } else if (line.includes("🃏")) {
-        flush();
-        currentType = "story";
-        currentContent = line.replace("🃏", "").trim();
-      } else if (line.includes("🔮")) {
-        flush();
-        currentType = "insight";
-        currentContent = line.replace("🔮", "").trim();
-      } else if (line.includes("🧠")) {
-        flush();
-        currentType = "reality";
-        currentContent = line.replace("🧠", "").trim();
-      } else {
-        currentContent += "\n" + line;
-      }
-    });
-    flush();
-    setParsedReading(sections);
+    setIsLoading(true);
+    try {
+      const result = await getTarotReading(question, cards);
+      setReading(result);
+    } catch (e) {
+      setReading("🛑 宇宙信号中断，请重试。");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const reset = () => {
+    setStep("input");
     setQuestion("");
     setSelectedCards([]);
-    setStep("input");
-    setReadingRaw("");
-    setParsedReading([]);
+    setReading("");
+    setDeck(getShuffledDeck());
   };
-
-  const fillTemplate = () => {
-    setQuestion(TEMPLATE_TEXT);
-  };
-
-  // Scroll to results when they appear
-  useEffect(() => {
-    if (step === "result" && scrollRef.current) {
-      scrollRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [step]);
 
   return (
-    <main className="min-h-screen w-full flex flex-col items-center p-4 md:p-8 font-sans overflow-x-hidden relative text-mystic-100">
-      {/* Background Decor */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-purple-900/30 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-blue-900/30 rounded-full blur-[120px]" />
-      </div>
+    <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-4 overflow-hidden relative selection:bg-purple-500 selection:text-white">
+      {/* Background Ambience */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/20 via-slate-950 to-slate-950 pointer-events-none" />
 
-      <div className="z-10 w-full max-w-4xl flex flex-col items-center space-y-12">
-        
-        {/* Header */}
-        <header className="text-center space-y-6 mt-8 md:mt-16">
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-center space-x-3"
-          >
-            <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-gold-500" />
-            <h1 className="text-4xl md:text-6xl font-bold font-serif tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-purple-200 via-pink-100 to-indigo-200 drop-shadow-lg">
-              行动塔罗
-            </h1>
-            <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-gold-500" />
-          </motion.div>
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="flex flex-col items-center space-y-2 text-mystic-100/90 font-light tracking-wide max-w-xl mx-auto"
-          >
-            <p className="text-lg md:text-xl font-medium text-gold-500/90">
-              看见此刻的暗流 · 信任你的直觉
-            </p>
-            <p className="text-sm md:text-base text-mystic-100/70 leading-relaxed italic">
-              不仅是占卜，是关于如何从舒适区走向深水区的行动指南
-            </p>
-          </motion.div>
-        </header>
+      {/* Header */}
+      <header className="absolute top-6 left-0 right-0 text-center z-10">
+        <h1 className="text-2xl md:text-3xl font-serif tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-purple-200 to-indigo-200 opacity-80">
+          BLUNT TAROT
+        </h1>
+        <p className="text-xs text-slate-500 uppercase tracking-[0.3em] mt-1">直言不讳 · 灵魂拷问</p>
+      </header>
 
-        {/* INPUT PHASE */}
+      <div className="z-10 w-full max-w-4xl flex flex-col items-center min-h-[600px] justify-center">
         <AnimatePresence mode="wait">
+          {/* STEP 1: INPUT */}
           {step === "input" && (
             <motion.div
               key="input"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, y: -20, filter: "blur(10px)" }}
-              className="w-full max-w-xl"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="w-full max-w-lg text-center space-y-8"
             >
-              <div className="bg-mystic-800/40 backdrop-blur-xl p-1 rounded-2xl border border-mystic-600/30 shadow-2xl ring-1 ring-white/10">
-                <div className="bg-mystic-900/60 rounded-xl p-6 md:p-8 space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gold-500/90 mb-2 uppercase tracking-wider">
-                      你的困惑
-                    </label>
-                    
-                    {/* Input Text Area */}
-                    <div className="relative">
-                      <textarea
-                        value={question}
-                        onChange={(e) => setQuestion(e.target.value)}
-                        placeholder={`例如：我想要离职创业，我的卡点是担心存款不够，我应该辞职吗？\n\n(越具体，洞察越深)`}
-                        className="w-full h-32 md:h-40 bg-mystic-100 border-0 rounded-lg p-4 text-black placeholder-gray-500 focus:ring-4 focus:ring-purple-500/30 outline-none resize-none shadow-inner transition-all text-base md:text-lg leading-relaxed"
-                      />
-                    </div>
-                    
-                    {/* Formula Display & Template Button */}
-                    <div className="mt-4 bg-mystic-950/30 rounded-lg p-3 border border-mystic-700/50">
-                      <div className="flex items-start space-x-2 text-xs md:text-sm text-mystic-100/80 mb-2">
-                        <Quote className="w-4 h-4 text-gold-500 shrink-0 mt-0.5" />
-                        <span className="font-mono leading-relaxed">
-                          <span className="text-gold-500 font-bold">提问公式：</span>
-                          我想要【目标/渴望】、但是我的卡点是【具体的恐惧/障碍】，我应该【行动选项】吗？
-                        </span>
-                      </div>
-                      <button 
-                        onClick={fillTemplate}
-                        className="w-full text-xs md:text-sm py-2 bg-mystic-800 hover:bg-mystic-700 text-gold-500/90 hover:text-gold-400 rounded transition-colors flex items-center justify-center space-x-2 border border-mystic-600/50"
-                      >
-                        <CopyPlus className="w-3 h-3 md:w-4 md:h-4" />
-                        <span>点击此处自动填入模版</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={handleStart}
-                    disabled={!question.trim()}
-                    className="group w-full py-4 px-6 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 disabled:opacity-50 disabled:grayscale rounded-lg font-bold text-white shadow-lg shadow-purple-900/50 flex items-center justify-center space-x-2 transition-all transform hover:scale-[1.01] active:scale-[0.99] mt-2"
-                  >
-                    <span className="tracking-widest">开始抽牌</span>
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* PICKING PHASE */}
-          {step === "picking" && (
-            <motion.div
-              key="picking"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex flex-col items-center space-y-8 w-full max-w-5xl"
-            >
-              <div className="text-center space-y-2">
-                <h3 className="text-2xl md:text-3xl font-serif text-gold-500">
-                  请凭直觉抽取 3 张牌
-                </h3>
-                <p className="text-mystic-100/50 text-sm">
-                  已选择 {selectedCards.length} / 3
+              <div className="space-y-4">
+                <h2 className="text-3xl md:text-5xl font-serif text-slate-200">
+                  有什么想问的？
+                </h2>
+                <p className="text-slate-400 font-light">
+                  别问那种你自己心里有答案的问题。
+                  <br />
+                  问点让你睡不着觉的。
                 </p>
               </div>
 
-              {/* Grid of Cards */}
-              <div className="flex flex-wrap justify-center gap-2 md:gap-4 perspective-1000 px-4">
-                {deck.map((card, idx) => {
-                  const isSelected = selectedCards.find(c => c.id === card.id);
+              <div className="relative group">
+                <textarea
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  placeholder="输入你的困惑..."
+                  className="w-full bg-slate-900/50 border border-slate-700 rounded-xl p-6 text-lg focus:outline-none focus:border-purple-500/50 transition-all min-h-[150px] resize-none custom-scrollbar shadow-xl"
+                />
+                <div className="absolute -inset-1 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 opacity-0 group-focus-within:opacity-20 blur transition-opacity -z-10" />
+              </div>
+
+              <button
+                onClick={handleStart}
+                disabled={!question.trim()}
+                className="group relative px-8 py-4 bg-slate-100 text-slate-950 font-bold tracking-wide rounded-full overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-105 active:scale-95"
+              >
+                <span className="relative z-10 flex items-center gap-2">
+                  开始洗牌 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </span>
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+            </motion.div>
+          )}
+
+          {/* STEP 2: SHUFFLE ANIMATION */}
+          {step === "shuffle" && (
+            <motion.div
+              key="shuffle"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center justify-center space-y-8"
+            >
+              <div className="relative w-48 h-72">
+                {[...Array(5)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    className="absolute inset-0 bg-gradient-to-br from-indigo-900 to-slate-900 border border-indigo-500/30 rounded-xl shadow-2xl backface-hidden"
+                    initial={{ rotate: 0, x: 0 }}
+                    animate={{
+                      rotate: [0, Math.random() * 20 - 10, 0],
+                      x: [0, Math.random() * 40 - 20, 0],
+                      scale: [1, 1.05, 1],
+                    }}
+                    transition={{
+                      duration: 0.8,
+                      repeat: Infinity,
+                      delay: i * 0.1,
+                    }}
+                  >
+                    <div className="w-full h-full opacity-20 bg-[url('https://www.sacred-texts.com/tarot/pkt/img/cardback.jpg')] bg-cover bg-center rounded-xl" />
+                  </motion.div>
+                ))}
+              </div>
+              <p className="text-slate-400 animate-pulse tracking-widest text-sm">洗牌中...</p>
+            </motion.div>
+          )}
+
+          {/* STEP 3: PICK CARDS */}
+          {step === "pick" && (
+            <motion.div
+              key="pick"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="w-full flex flex-col items-center space-y-8"
+            >
+              <div className="text-center space-y-2">
+                <h3 className="text-2xl font-serif text-slate-200">
+                  抽取三张牌 ({selectedCards.length}/3)
+                </h3>
+                <p className="text-slate-500 text-sm">
+                  凭直觉点击，不要犹豫
+                </p>
+              </div>
+
+              {/* Deck Spread */}
+              <div className="relative w-full max-w-5xl h-[300px] flex items-center justify-center perspective-1000">
+                {deck.slice(0, 22).map((card, index) => {
+                  const isSelected = selectedCards.find((c) => c.id === card.id);
+                  // Calculate fan position
+                  const totalCards = 22;
+                  const angle = (index - totalCards / 2) * 5; // Fan spread angle
+                  const xOffset = (index - totalCards / 2) * 12; // Horizontal spread
+
                   return (
                     <motion.div
                       key={card.id}
-                      layout
-                      initial={{ opacity: 0, scale: 0.8 }}
+                      initial={{ opacity: 0, y: 100 }}
                       animate={{ 
-                        opacity: isSelected ? 0 : 1, // Hide if selected (or we could move it)
-                        scale: 1 
+                        opacity: isSelected ? 0 : 1, 
+                        y: isSelected ? -100 : 0,
+                        rotate: angle,
+                        x: xOffset,
                       }}
-                      transition={{ delay: idx * 0.03 }}
-                      whileHover={{ y: -10, scale: 1.05 }}
-                      onClick={() => handleCardPick(card)}
-                      className={`w-14 h-24 md:w-20 md:h-32 bg-mystic-800 rounded border border-gold-600/20 cursor-pointer shadow-lg relative group ${isSelected ? 'pointer-events-none' : ''}`}
+                      whileHover={{ y: -20, zIndex: 10, scale: 1.1 }}
+                      onClick={() => handleCardClick(card)}
+                      className="absolute w-24 h-40 md:w-32 md:h-52 bg-gradient-to-br from-indigo-950 to-slate-900 border border-indigo-500/30 rounded-lg shadow-xl cursor-pointer hover:border-indigo-400 transition-colors origin-bottom transform-gpu"
+                      style={{ 
+                        zIndex: index,
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.5)' 
+                      }}
                     >
-                      {/* Card Back Pattern */}
-                      <div className="absolute inset-0 bg-[url('https://www.sacred-texts.com/tarot/pkt/img/cardback.jpg')] bg-cover bg-center rounded opacity-90 group-hover:opacity-100 transition-opacity" />
+                      <div className="w-full h-full opacity-30 bg-[repeating-linear-gradient(45deg,#000,#000_10px,#1e1b4b_10px,#1e1b4b_20px)] rounded-lg" />
                     </motion.div>
                   );
                 })}
               </div>
-
-              {/* Display Selected Slots */}
-              <div className="flex justify-center gap-6 mt-8 min-h-[160px]">
-                {[0, 1, 2].map((i) => (
-                  <div 
-                    key={i}
-                    className="w-24 h-40 md:w-32 md:h-52 rounded-lg border-2 border-dashed border-mystic-600/30 flex items-center justify-center relative bg-mystic-900/30"
-                  >
-                    {selectedCards[i] && (
-                      <motion.div
-                        layoutId={`card-${selectedCards[i].id}`}
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="w-full h-full absolute inset-0 bg-mystic-800 rounded-lg shadow-xl overflow-hidden"
-                      >
-                         <div className="absolute inset-0 bg-[url('https://www.sacred-texts.com/tarot/pkt/img/cardback.jpg')] bg-cover bg-center" />
-                      </motion.div>
-                    )}
-                    {!selectedCards[i] && (
-                      <span className="text-mystic-600/50 text-2xl font-bold">{i + 1}</span>
-                    )}
-                  </div>
-                ))}
-              </div>
             </motion.div>
           )}
 
-          {/* READING LOADING PHASE */}
+          {/* STEP 4: READING / RESULT */}
           {step === "reading" && (
             <motion.div
               key="reading"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex flex-col items-center justify-center space-y-8 py-12"
+              className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12"
             >
-              <div className="flex justify-center gap-6">
-                {[0, 1, 2].map((i) => (
-                   <motion.div
-                    key={i}
-                    initial={{ rotateY: 180 }}
-                    animate={{ 
-                       rotateY: [180, 0, 180],
-                       scale: [1, 1.05, 1],
-                       boxShadow: ["0px 0px 0px rgba(255,215,0,0)", "0px 0px 30px rgba(255,215,0,0.5)", "0px 0px 0px rgba(255,215,0,0)"]
-                    }}
-                    transition={{ 
-                      repeat: Infinity, 
-                      duration: 3, 
-                      delay: i * 0.5, 
-                      ease: "easeInOut" 
-                    }}
-                    className="w-24 h-40 md:w-32 md:h-52 bg-mystic-800 rounded-lg border border-gold-500/30"
-                    style={{ transformStyle: "preserve-3d" }}
+              {/* Cards Display */}
+              <div className="md:col-span-3 flex justify-center gap-4 md:gap-8 mb-8">
+                {selectedCards.map((card, index) => (
+                  <motion.div
+                    key={card.id}
+                    initial={{ rotateY: 180, opacity: 0 }}
+                    animate={{ rotateY: 0, opacity: 1 }}
+                    transition={{ delay: index * 0.3, duration: 0.8, type: "spring" }}
+                    className="relative w-28 h-48 md:w-40 md:h-64 preserve-3d"
                   >
-                     <div className="absolute inset-0 bg-[url('https://www.sacred-texts.com/tarot/pkt/img/cardback.jpg')] bg-cover bg-center rounded-lg backface-hidden" />
-                     <div className="absolute inset-0 bg-mystic-900 rounded-lg backface-hidden" style={{ transform: "rotateY(180deg)" }} />
+                    <div className="w-full h-full bg-slate-800 rounded-lg shadow-2xl overflow-hidden border border-slate-700">
+                      <img
+                        src={getFullImageUrl(card.image)}
+                        alt={card.name}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute bottom-0 inset-x-0 bg-black/60 backdrop-blur-sm p-2 text-center">
+                        <p className="text-xs md:text-sm text-white font-serif">{card.nameCN}</p>
+                      </div>
+                    </div>
                   </motion.div>
                 ))}
               </div>
-              <div className="text-center space-y-2">
-                <h3 className="text-2xl md:text-3xl font-serif text-gold-500 animate-pulse">
-                  正在深入潜意识...
-                </h3>
-                <p className="text-mystic-100/50 text-sm">
-                  解析牌面符号与现实困境的关联
-                </p>
+
+              {/* AI Analysis Output */}
+              <div className="md:col-span-3 bg-slate-900/50 border border-slate-800 rounded-2xl p-6 md:p-10 shadow-2xl backdrop-blur-xl min-h-[400px] relative">
+                {isLoading ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center space-y-4">
+                    <Sparkles className="w-8 h-8 text-purple-400 animate-spin" />
+                    <p className="text-purple-200 animate-pulse font-serif">正在链接高维信息...</p>
+                  </div>
+                ) : (
+                  <div className="prose prose-invert max-w-none">
+                    <div className="flex justify-between items-start mb-6 border-b border-slate-800 pb-4">
+                      <div className="text-sm text-slate-500">
+                        <span className="block text-xs uppercase tracking-wider mb-1">Question</span>
+                        "{question}"
+                      </div>
+                      <button 
+                        onClick={reset}
+                        className="text-slate-500 hover:text-white transition-colors"
+                        title="New Reading"
+                      >
+                        <RefreshCcw className="w-5 h-5" />
+                      </button>
+                    </div>
+                    
+                    {/* Render Reading with Line Breaks */}
+                    <div className="space-y-4 font-light leading-relaxed text-slate-200 text-lg">
+                      {reading.split('\n').map((line, i) => {
+                        if (line.trim() === "") return <br key={i} />;
+                        
+                        // Style specific headers based on emojis used in prompt
+                        if (line.includes("🛑")) return <p key={i} className="text-red-300 font-medium bg-red-950/20 p-4 rounded-lg border border-red-900/30">{line}</p>;
+                        if (line.includes("🔮")) return <p key={i} className="text-purple-300 font-serif text-xl mt-6">{line}</p>;
+                        if (line.includes("👉") || line.includes("⚠️")) return <p key={i} className="text-amber-200 font-bold bg-amber-950/20 p-3 rounded-l border-l-4 border-amber-500 my-4">{line}</p>;
+                        
+                        return <p key={i}>{line}</p>;
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* RESULTS PHASE */}
-        {step === "result" && (
-          <motion.div
-            key="result"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="w-full space-y-16 pb-20"
-          >
-            {/* Cards Reveal */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
-              {selectedCards.map((card, idx) => (
-                <motion.div
-                  key={card.id}
-                  initial={{ opacity: 0, y: 30, rotateX: 20 }}
-                  animate={{ opacity: 1, y: 0, rotateX: 0 }}
-                  transition={{ delay: idx * 0.3, type: "spring", stiffness: 100 }}
-                  className="group flex flex-col items-center space-y-4"
-                >
-                  <div className="relative w-48 h-80 md:w-full md:aspect-[3/5] rounded-xl overflow-hidden shadow-2xl border-2 border-mystic-700 transition-transform duration-500 group-hover:scale-105 group-hover:border-gold-500/50 group-hover:shadow-gold-500/20">
-                    <img
-                      src={getFullImageUrl(card.image)}
-                      alt={card.name}
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                  <div className="text-center space-y-1">
-                    <h3 className="text-gold-500 font-serif text-2xl tracking-wide flex flex-col items-center">
-                      <span className="text-lg md:text-xl">{card.nameCN}</span>
-                      <span className="text-xs md:text-sm text-mystic-100/40 font-sans tracking-widest uppercase">{card.name}</span>
-                    </h3>
-                    <p className="text-xs text-mystic-100/50 uppercase tracking-[0.2em] font-medium pt-1">
-                      {idx === 0 ? "Situation" : idx === 1 ? "Challenge" : "Advice"}
-                    </p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Reading Content */}
-            <div ref={scrollRef} className="space-y-8 max-w-3xl mx-auto">
-              {parsedReading.map((section, idx) => {
-                let borderColor = "border-mystic-700";
-                let bgGradient = "bg-mystic-800/40";
-                let textColor = "text-mystic-100";
-                let title = "";
-
-                if (section.type === "connection") {
-                  borderColor = "border-red-500/30";
-                  bgGradient = "from-red-950/30 to-purple-900/30";
-                  textColor = "text-red-100";
-                  title = "破冰";
-                } else if (section.type === "story") {
-                  borderColor = "border-indigo-500/30";
-                  bgGradient = "from-indigo-950/30 to-purple-900/30";
-                  textColor = "text-indigo-100";
-                  title = "牌面解析"; // Changed from 牌面故事 to match professional tone
-                } else if (section.type === "insight") {
-                  borderColor = "border-gold-600/30";
-                  bgGradient = "from-amber-950/30 to-purple-900/30";
-                  textColor = "text-amber-100";
-                  title = "关键洞察";
-                } else if (section.type === "reality") {
-                  borderColor = "border-emerald-500/30";
-                  bgGradient = "from-emerald-950/30 to-purple-900/30";
-                  textColor = "text-emerald-100";
-                  title = "行动指引"; // Changed from 灵魂拷问 to match professional tone
-                }
-
-                return (
-                  <motion.div
-                    key={idx}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.8 + idx * 0.15 }}
-                    className={`group relative overflow-hidden rounded-2xl border ${borderColor} bg-gradient-to-br ${bgGradient} backdrop-blur-md p-8 md:p-10 shadow-lg`}
-                  >
-                    <div className="absolute top-0 right-0 p-4 opacity-5 font-bold text-6xl md:text-8xl font-serif select-none pointer-events-none text-white">
-                      {title}
-                    </div>
-                    <div className={`prose prose-invert prose-p:text-lg prose-p:leading-8 ${textColor} max-w-none`}>
-                      <p className="whitespace-pre-wrap">{section.content}</p>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-
-            {/* Reset Button */}
-            <div className="flex justify-center pt-8">
-              <button
-                onClick={reset}
-                className="group flex items-center space-x-3 px-8 py-4 rounded-full bg-mystic-800 hover:bg-mystic-700 border border-mystic-600 transition-all hover:scale-105 shadow-xl"
-              >
-                <RotateCcw className="w-5 h-5 text-gold-500 group-hover:-rotate-180 transition-transform duration-500" />
-                <span className="text-mystic-100 font-medium tracking-wide">开始新的探索</span>
-              </button>
-            </div>
-          </motion.div>
-        )}
       </div>
     </main>
   );

@@ -1,8 +1,10 @@
 {
   "name": "blunt-ai-tarot",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
+    "//": "下面这行代码会在启动前强制删除捣乱的文件",
+    "predev": "rm -f index.tsx index.html vite.config.ts",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -16,7 +18,7 @@
     "lucide-react": "^0.300.0",
     "clsx": "^2.1.0",
     "tailwind-merge": "^2.2.0",
-    "@google/generative-ai": "^0.21.0"
+    "@google/genai": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^20",
