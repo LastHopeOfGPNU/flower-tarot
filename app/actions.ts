@@ -1,18 +1,18 @@
 "use server";
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { TarotCard } from "@/utils/tarotDeck";
 
-// 使用环境变量，如果不存在则使用预设的 Key (兼容你的调试需求)
-const API_KEY = process.env.API_KEY || "AIzaSyBOJpHiG7aLI_NUDO8YZ99pPmA09iKZMtw";
-
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+// The API key must be obtained exclusively from the environment variable process.env.API_KEY
+const genAI = new GoogleGenerativeAI(process.env.API_KEY || "");
 
 export async function getTarotReading(question: string, cards: TarotCard[]) {
   try {
     const cardInfo = cards.map((c) => `${c.nameCN} (${c.name})`).join(", ");
     
-    // 使用 gemini-2.5-flash 模型 (Standard for text tasks per guidelines)
+    // Using gemini-1.5-flash as it is stable with this SDK version
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
     const prompt = `
 # Role: 你的直言老友 & 深水区向导 (Your Blunt, Insightful Friend)
 
@@ -57,15 +57,11 @@ User's Question: "${question}"
 Cards Drawn: ${cardInfo}
 `;
 
-    // Updated to use the new SDK method structure
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
-
-    return response.text || "🃏 信号连接中... 请稍后重试。";
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text();
   } catch (error) {
     console.error("Error generating tarot reading:", error);
-    return "🛑 连接中断。\n\n🃏 似乎有些干扰信号阻挡了信息的传递。\n\n🔮 请检查你的 API Key 是否有效，或者稍后再试。";
+    return "🛑 信号中断。\n\n🃏 数据流在深层潜意识中遇到阻碍。\n\n🔮 请稍后重新建立连接。";
   }
 }
