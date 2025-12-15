@@ -4,7 +4,8 @@ const config: Config = {
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",  // 👈 这一行最重要！
+    "./src/**/*.{js,ts,jsx,tsx,mdx}",  // 以防你把 app 放进了 src 文件夹
   ],
   theme: {
     extend: {
