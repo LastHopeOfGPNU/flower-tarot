@@ -2,10 +2,20 @@ export interface TarotCard {
   name: string;
   nameCN: string; // Chinese name
   id: string;
-  image: string; // URL path suffix for sacred-texts
+  image: string; // URL path suffix
   meaningUp: string;
   meaningRev: string;
 }
+
+// 修复点：使用稳定的 GitHub 图源（Rider-Waite 原始版本）
+// 原来的 sacred-texts 链接已失效
+const BASE_IMAGE_URL = "https://raw.githubusercontent.com/tlenghan/tarot-card-json/master/images";
+
+export const getFullImageUrl = (filename: string) => {
+  // 确保 filename 是干净的
+  const cleanName = filename.trim();
+  return `${BASE_IMAGE_URL}/${cleanName}`;
+};
 
 // Simplified Deck (Major Arcana for high impact)
 const MAJOR_ARCANA: TarotCard[] = [
@@ -32,8 +42,6 @@ const MAJOR_ARCANA: TarotCard[] = [
   { name: "Judgement", nameCN: "审判", id: "ar20", image: "ar20.jpg", meaningUp: "Rebirth, inner calling", meaningRev: "Self-doubt" },
   { name: "The World", nameCN: "世界", id: "ar21", image: "ar21.jpg", meaningUp: "Completion, travel", meaningRev: "Incomplete" },
 ];
-
-export const getFullImageUrl = (filename: string) => `https://www.sacred-texts.com/tarot/pkt/img/${filename}`;
 
 // Returns the full deck shuffled
 export const getShuffledDeck = (): TarotCard[] => {
