@@ -4,27 +4,31 @@ const config: Config = {
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./app/**/*.{js,ts,jsx,tsx,mdx}",  // 👈 这一行最重要！
-    "./src/**/*.{js,ts,jsx,tsx,mdx}",  // 以防你把 app 放进了 src 文件夹
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {
+      // 👇 下面这部分就是你缺失的“调色盘”
       colors: {
-        mystic: {
-          900: "#1a0b2e", // Deep purple background
-          800: "#2d1b4e", // Card background
-          700: "#432c7a", // Accent
-          600: "#764ba2", // Highlight
-          100: "#e0d4fc", // Text
-        },
         gold: {
-          500: "#ffd700",
-          600: "#d4af37",
-        }
+          400: "#FACC15", // 明亮的金色
+          500: "#EAB308", // 标准金色
+        },
+        mystic: {
+          100: "#E0E7FF", // 极淡的紫/白
+          600: "#4F46E5",
+          700: "#4338ca",
+          800: "#3730A3", // 深紫
+          900: "#312E81", // 更深的紫
+          950: "#1E1B4B", // 接近黑色的紫
+        },
       },
+      // 👆 补全结束
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
-        "mystic-gradient": "linear-gradient(to bottom, #0f0c29, #302b63, #24243e)",
+        "gradient-conic":
+          "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
       },
     },
   },
