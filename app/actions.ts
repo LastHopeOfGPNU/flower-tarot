@@ -11,7 +11,7 @@ export async function getTarotReading(question: string, cards: TarotCard[]) {
     const cardInfo = cards.map((c) => `${c.nameCN} (${c.name})`).join(", ");
     
     // Using gemini-1.5-flash as it is stable with this SDK version
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
     const prompt = `
 # Role: 你的直言老友 & 深水区向导 (Your Blunt, Insightful Friend)
