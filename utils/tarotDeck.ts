@@ -1,23 +1,21 @@
 export interface TarotCard {
   name: string;
-  nameCN: string; // Chinese name
+  nameCN: string;
   id: string;
-  image: string; // 直接存储完整的 URL，不再需要拼接
+  image: string;
   meaningUp: string;
   meaningRev: string;
 }
 
-// 帮助函数：因为我们在数组里存了完整链接，这里直接返回即可
-// 这样改是为了防止前端组件里有类似 `${baseUrl}/${image}` 的重复拼接
+// 帮助函数：直接返回完整路径
 export const getFullImageUrl = (imagePath: string) => {
-  // 如果前端传进来的是文件名（防错机制），返回维基百科默认图
   if (!imagePath.startsWith("http")) {
      return "https://upload.wikimedia.org/wikipedia/commons/9/90/RWS_Tarot_00_Fool.jpg"; 
   }
   return imagePath;
 };
 
-// 使用维基百科的高清 RWS 塔罗牌源，稳定且永远不会 404
+// 使用维基百科的高清 RWS 塔罗牌源
 const MAJOR_ARCANA: TarotCard[] = [
   { name: "The Fool", nameCN: "愚人", id: "ar00", image: "https://upload.wikimedia.org/wikipedia/commons/9/90/RWS_Tarot_00_Fool.jpg", meaningUp: "New beginnings, innocence", meaningRev: "Recklessness" },
   { name: "The Magician", nameCN: "魔术师", id: "ar01", image: "https://upload.wikimedia.org/wikipedia/commons/d/de/RWS_Tarot_01_Magician.jpg", meaningUp: "Manifestation, power", meaningRev: "Manipulation" },
@@ -32,4 +30,21 @@ const MAJOR_ARCANA: TarotCard[] = [
   { name: "Wheel of Fortune", nameCN: "命运之轮", id: "ar10", image: "https://upload.wikimedia.org/wikipedia/commons/3/3c/RWS_Tarot_10_Wheel_of_Fortune.jpg", meaningUp: "Change, cycles", meaningRev: "Bad luck" },
   { name: "Justice", nameCN: "正义", id: "ar11", image: "https://upload.wikimedia.org/wikipedia/commons/e/e0/RWS_Tarot_11_Justice.jpg", meaningUp: "Fairness, truth", meaningRev: "Dishonesty" },
   { name: "The Hanged Man", nameCN: "倒吊人", id: "ar12", image: "https://upload.wikimedia.org/wikipedia/commons/2/2b/RWS_Tarot_12_Hanged_Man.jpg", meaningUp: "Surrender, perspective", meaningRev: "Stalling" },
-  { name: "Death", nameCN: "死神", id: "ar13", image: "
+  { name: "Death", nameCN: "死神", id: "ar13", image: "https://upload.wikimedia.org/wikipedia/commons/d/d7/RWS_Tarot_13_Death.jpg", meaningUp: "Endings, transformation", meaningRev: "Resistance to change" },
+  { name: "Temperance", nameCN: "节制", id: "ar14", image: "https://upload.wikimedia.org/wikipedia/commons/f/f8/RWS_Tarot_14_Temperance.jpg", meaningUp: "Balance, moderation", meaningRev: "Imbalance" },
+  { name: "The Devil", nameCN: "恶魔", id: "ar15", image: "https://upload.wikimedia.org/wikipedia/commons/5/55/RWS_Tarot_15_Devil.jpg", meaningUp: "Addiction, materialism", meaningRev: "Detachment" },
+  { name: "The Tower", nameCN: "高塔", id: "ar16", image: "https://upload.wikimedia.org/wikipedia/commons/5/53/RWS_Tarot_16_Tower.jpg", meaningUp: "Sudden change, upheaval", meaningRev: "Avoidance of disaster" },
+  { name: "The Star", nameCN: "星星", id: "ar17", image: "https://upload.wikimedia.org/wikipedia/commons/d/db/RWS_Tarot_17_Star.jpg", meaningUp: "Hope, faith", meaningRev: "Despair" },
+  { name: "The Moon", nameCN: "月亮", id: "ar18", image: "https://upload.wikimedia.org/wikipedia/commons/7/7f/RWS_Tarot_18_Moon.jpg", meaningUp: "Illusion, fear", meaningRev: "Confusion" },
+  { name: "The Sun", nameCN: "太阳", id: "ar19", image: "https://upload.wikimedia.org/wikipedia/commons/1/17/RWS_Tarot_19_Sun.jpg", meaningUp: "Positivity, success", meaningRev: "Temporary depression" },
+  { name: "Judgement", nameCN: "审判", id: "ar20", image: "https://upload.wikimedia.org/wikipedia/commons/d/dd/RWS_Tarot_20_Judgement.jpg", meaningUp: "Rebirth, inner calling", meaningRev: "Self-doubt" },
+  { name: "The World", nameCN: "世界", id: "ar21", image: "https://upload.wikimedia.org/wikipedia/commons/f/ff/RWS_Tarot_21_World.jpg", meaningUp: "Completion, travel", meaningRev: "Incomplete" },
+];
+
+export const getShuffledDeck = (): TarotCard[] => {
+  return [...MAJOR_ARCANA].sort(() => 0.5 - Math.random());
+};
+
+export const drawCards = (count: number = 3): TarotCard[] => {
+  return getShuffledDeck().slice(0, count);
+};
